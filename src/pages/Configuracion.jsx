@@ -11,8 +11,7 @@ import {
   Timer,
   Sparkles,
   Clock,
-  Webhook,
-  Sliders,
+  Megaphone,
   Settings,
 } from 'lucide-react';
 import { fetchAllConfig } from '../api/client';
@@ -22,17 +21,15 @@ import { Tabs } from '../components/ui/Tabs';
 import {
   AnthropicForm,
   DispatcherForm,
-  ExtrasForm,
   OperatingHoursForm,
-  WebhookForm,
 } from '../components/config/ConfigForms';
+import { BroadcastsPage } from './Broadcasts';
 
 const TABS = [
   { value: 'dispatcher', label: 'Dispatcher', icon: <Timer size={14} /> },
   { value: 'anthropic', label: 'Anthropic', icon: <Sparkles size={14} /> },
   { value: 'operating_hours', label: 'Horarios', icon: <Clock size={14} /> },
-  { value: 'webhook', label: 'Webhook', icon: <Webhook size={14} /> },
-  { value: 'extras', label: 'Extras', icon: <Sliders size={14} /> },
+  { value: 'broadcasts', label: 'Broadcasts', icon: <Megaphone size={14} /> },
 ];
 
 export function ConfiguracionPage() {
@@ -51,19 +48,21 @@ export function ConfiguracionPage() {
     <div className="anim-fadein">
       <Tabs value={tab} onChange={setTab} tabs={TABS} />
 
-      <Card>
-        <CardTitle icon={<Settings size={18} />}>
-          {TABS.find((t) => t.value === tab)?.label}
-        </CardTitle>
+      {tab === 'broadcasts' ? (
+        <BroadcastsPage />
+      ) : (
+        <Card>
+          <CardTitle icon={<Settings size={18} />}>
+            {TABS.find((t) => t.value === tab)?.label}
+          </CardTitle>
 
-        {tab === 'dispatcher' && <DispatcherForm initial={data.dispatcher} />}
-        {tab === 'anthropic' && <AnthropicForm initial={data.anthropic} />}
-        {tab === 'operating_hours' && (
-          <OperatingHoursForm initial={data.operating_hours} />
-        )}
-        {tab === 'webhook' && <WebhookForm initial={data.webhook} />}
-        {tab === 'extras' && <ExtrasForm initial={data.extras} />}
-      </Card>
+          {tab === 'dispatcher' && <DispatcherForm initial={data.dispatcher} />}
+          {tab === 'anthropic' && <AnthropicForm initial={data.anthropic} />}
+          {tab === 'operating_hours' && (
+            <OperatingHoursForm initial={data.operating_hours} />
+          )}
+        </Card>
+      )}
     </div>
   );
 }

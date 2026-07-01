@@ -10,8 +10,8 @@ import { useLocation } from 'react-router-dom';
 import { useBotStatus } from '../../hooks/useBotStatus';
 
 const TITLES = {
-  '/': 'Dashboard',
-  '/argos': 'Argos',
+  '/': 'Panel de control',
+  '/argos': 'Dashboard',
   '/configuracion': 'Configuración',
   '/broadcasts': 'Broadcasts',
   '/logs': 'Logs',

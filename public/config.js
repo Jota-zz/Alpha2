@@ -28,4 +28,4 @@
  *   vacío (''): el proxy de Vite redirige solo. Si por el contrario
  *   quieres apuntar el dev al ngrok público, pones aquí esa URL.
  */
-window.__BOT_API__ = '';
+window.__BOT_API__ = 'https://stunner-upside-nutty.ngrok-free.dev';

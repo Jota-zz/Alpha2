@@ -261,6 +261,57 @@ body {
   padding-left: 0.95rem;
 }
 
+/* Header layout cuando una card tiene filtros inline al lado del título */
+.ds-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ds-card-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.ds-filter-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 0.15rem;
+}
+
+.ds-select-sm {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 500;
+  color: #f1f5f9;
+  font-size: 0.72rem;
+  font-family: inherit;
+  cursor: pointer;
+  max-width: 220px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.ds-select-sm:hover {
+  border-color: rgba(212, 238, 43, 0.45);
+}
+.ds-select-sm:focus {
+  outline: none;
+  border-color: rgb(212, 238, 43);
+  background: rgba(255, 255, 255, 0.1);
+}
+.ds-select-sm option {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
 .ds-grid2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

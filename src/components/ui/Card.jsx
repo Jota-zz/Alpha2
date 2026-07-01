@@ -16,12 +16,15 @@ export function Card({ children, className = '', ...rest }) {
   );
 }
 
-export function CardTitle({ children, icon, subtitle }) {
+export function CardTitle({ children, icon, subtitle, actions }) {
   return (
     <>
-      <div className="ds-card-title">
-        {icon}
-        <span>{children}</span>
+      <div className="ds-card-header">
+        <div className="ds-card-title">
+          {icon}
+          <span>{children}</span>
+        </div>
+        {actions ? <div className="ds-card-filters">{actions}</div> : null}
       </div>
       {subtitle ? <div className="ds-card-subtitle">{subtitle}</div> : null}
     </>

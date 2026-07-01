@@ -1,50 +1,93 @@
 /**
  * Chart "Intervalos HDI": forest plot con precios_mu y barras de error
- * asimétricas (hdi_lower, hdi_upper) por municipio.
+ * asimétricas (hdi_lower, hdi_upper) por municipio. Datos: CSV
+ * `argos_intervalos_hdi.csv` descargado desde Drive.
  *
  * Props:
- *   - codMunicipio: si se pasa, filtra el endpoint a ese municipio. Sin
- *     filtro, el backend devuelve top 30 por precio (cap para legibilidad).
- *
- * Datos: GET /api/argos/intervalos-hdi?cod_municipio=<...>
+ *   - csvText: contenido crudo del CSV (string).
+ *   - codMunicipio: filtro global heredado de Argos.jsx (valor inicial). El
+ *     usuario puede sobre-escribirlo localmente desde el select del header.
+ *   - municipiosOpts: lista [{ cod, nombre }] derivada en Argos.jsx para que
+ *     el select muestre nombres legibles.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { fetchArgosIntervalosHdi } from '../../api/client';
-import { Card, CardTitle } from '../ui/Card';
-import { ErrorCard, Loading } from '../ui/EmptyState';
-import { PlotChart } from './PlotChart';
+import { useMemo, useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
+import { Card, CardTitle } from '../ui/Card';
+import { EmptyState } from '../ui/EmptyState';
+import { PlotChart } from './PlotChart';
+import { buildIntervalosHdi } from '../../lib/csvParsers';
 
-export function IntervalosHdiChart({ codMunicipio = null }) {
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['argos', 'intervalos-hdi', codMunicipio || 'all'],
-    queryFn: () => fetchArgosIntervalosHdi(codMunicipio),
-    staleTime: 60_000,
-    // Mantener los datos previos visibles mientras se cambia de municipio
-    placeholderData: (prev) => prev,
-  });
+export function IntervalosHdiChart({
+  csvText,
+  codMunicipio: codGlobal = null,
+  municipiosOpts = [],
+}) {
+  const [codLocal, setCodLocal] = useState(codGlobal || '');
+  useEffect(() => setCodLocal(codGlobal || ''), [codGlobal]);
+
+  const codMunicipio = codLocal || null;
+
+  const parsed = useMemo(() => {
+    if (!csvText) return null;
+    try {
+      return buildIntervalosHdi(csvText, codMunicipio);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[hdi] error parseando', e);
+      return null;
+    }
+  }, [csvText, codMunicipio]);
+
+  const filtersUI = (
+    <select
+      className="ds-select-sm"
+      value={codLocal}
+      onChange={(e) => setCodLocal(e.target.value)}
+      title="Filtrar por municipio"
+      data-testid="hdi-filter-municipio"
+    >
+      <option value="">Municipio: top 30</option>
+      {municipiosOpts.map((m) => (
+        <option key={m.cod} value={m.cod}>
+          {m.nombre} ({m.cod})
+        </option>
+      ))}
+    </select>
+  );
 
   const titleSuffix = codMunicipio
-    ? `municipio ${codMunicipio} · ${data?.stats?.n_municipios ?? 0} productos`
-    : `top ${data?.stats?.n_municipios ?? 30} por precio medio`;
+    ? `municipio ${codMunicipio} · ${parsed?.stats?.n_municipios ?? 0} registros`
+    : `top ${parsed?.stats?.n_municipios ?? 0} por precio medio`;
+
+  if (!parsed) {
+    return (
+      <Card>
+        <CardTitle icon={<Sparkles size={18} />} actions={filtersUI}>
+          Intervalos HDI 94%
+        </CardTitle>
+        <EmptyState icon="📂" title="Sin datos">
+          No se pudo parsear el CSV de intervalos HDI.
+        </EmptyState>
+      </Card>
+    );
+  }
 
   return (
     <Card>
-      <CardTitle icon={<Sparkles size={18} />} subtitle={titleSuffix}>
+      <CardTitle
+        icon={<Sparkles size={18} />}
+        subtitle={titleSuffix}
+        actions={filtersUI}
+      >
         Intervalos HDI 94%
       </CardTitle>
-
-      {isLoading && <Loading label="Cargando intervalos…" />}
-      {isError && <ErrorCard error={error} />}
-      {data && !isLoading && (
-        <PlotChart
-          data={data.data}
-          layout={data.layout}
-          height={400}
-          testId="argos-hdi"
-        />
-      )}
+      <PlotChart
+        data={parsed.data}
+        layout={parsed.layout}
+        height={400}
+        testId="argos-hdi"
+      />
     </Card>
   );
 }

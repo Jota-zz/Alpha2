@@ -11,12 +11,13 @@
  * Para historial persistente, Render captura stdout y los expone en su panel.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Terminal, Pause, Play, RefreshCcw } from 'lucide-react';
+import { Terminal, Pause, Play, RefreshCcw, Users } from 'lucide-react';
 import { fetchLogs } from '../api/client';
 import { Card, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Toggle } from '../components/ui/Toggle';
 import { ErrorCard, EmptyState, Loading } from '../components/ui/EmptyState';
 
 const LEVEL_OPTIONS = [
@@ -28,6 +29,21 @@ const LEVEL_OPTIONS = [
 ];
 
 const LIMIT_OPTIONS = [50, 200, 500, 1000];
+
+// Patrón de interacciones con usuarios: loggers o mensajes relacionados con
+// webhooks entrantes/salientes, dispatcher de mensajes, WhatsApp, llamadas a
+// Anthropic en contexto conversacional y el worker que entrega respuestas.
+const USER_INTERACTION_REGEX =
+  /(webhook|whatsapp|wa_|inbound|outbound|dispatcher|worker|message|chat|outreach|anthropic|reply|conversation|broadcast)/i;
+
+function isUserInteractionLog(rec) {
+  if (!rec) return false;
+  const logger = rec.logger || '';
+  const message = rec.message || '';
+  return (
+    USER_INTERACTION_REGEX.test(logger) || USER_INTERACTION_REGEX.test(message)
+  );
+}
 
 function levelColor(level) {
   switch (level) {
@@ -75,6 +91,7 @@ export function LogsPage() {
   const [level, setLevel] = useState('');
   const [limit, setLimit] = useState(200);
   const [follow, setFollow] = useState(true);
+  const [onlyUserInteractions, setOnlyUserInteractions] = useState(false);
   const scrollRef = useRef(null);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -84,12 +101,19 @@ export function LogsPage() {
     staleTime: 4_000,
   });
 
+  // Filtrado client-side cuando se pide "solo interacciones con usuarios".
+  const filteredRecords = useMemo(() => {
+    if (!data?.records) return [];
+    if (!onlyUserInteractions) return data.records;
+    return data.records.filter(isUserInteractionLog);
+  }, [data, onlyUserInteractions]);
+
   // Auto-scroll al final cuando llegan logs nuevos en modo follow
   useEffect(() => {
     if (follow && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [data, follow]);
+  }, [filteredRecords, follow]);
 
   return (
     <div className="anim-fadein">
@@ -133,6 +157,26 @@ export function LogsPage() {
             </select>
           </div>
 
+          <div className="flex items-center gap-2 pl-2 border-l border-white/[0.08]">
+            <Users
+              size={14}
+              className={
+                onlyUserInteractions ? 'text-emerald-300' : 'text-slate-500'
+              }
+            />
+            <label
+              className="text-xs text-slate-400 uppercase tracking-wider font-semibold cursor-pointer select-none"
+              onClick={() => setOnlyUserInteractions((v) => !v)}
+              title="Filtra logs cuyo logger o mensaje involucra webhooks, dispatcher, Anthropic, broadcasts o WhatsApp."
+            >
+              Solo interacciones con usuarios
+            </label>
+            <Toggle
+              checked={onlyUserInteractions}
+              onChange={setOnlyUserInteractions}
+            />
+          </div>
+
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="ghost"
@@ -159,9 +203,13 @@ export function LogsPage() {
 
         {data && (
           <>
-            {data.records.length === 0 ? (
+            {filteredRecords.length === 0 ? (
               <EmptyState icon="🪵" title="No hay logs">
-                {level ? `Sin entradas de nivel ${level}` : 'El ring buffer está vacío'}
+                {onlyUserInteractions
+                  ? 'No hay interacciones con usuarios en este rango'
+                  : level
+                  ? `Sin entradas de nivel ${level}`
+                  : 'El ring buffer está vacío'}
               </EmptyState>
             ) : (
               <div
@@ -176,7 +224,7 @@ export function LogsPage() {
                   border: '1px solid rgba(255, 255, 255, 0.05)',
                 }}
               >
-                {data.records.map((rec, i) => (
+                {filteredRecords.map((rec, i) => (
                   <div
                     key={i}
                     className="grid items-baseline gap-3 py-0.5 hover:bg-white/[0.02]"
@@ -205,8 +253,11 @@ export function LogsPage() {
 
             <div className="text-xs text-slate-500 mt-3 flex items-center gap-3">
               <span>
-                {data.records.length} entradas
+                {filteredRecords.length} entradas
                 {data.level_filter ? ` (${data.level_filter})` : ''}
+                {onlyUserInteractions
+                  ? ` · filtradas de ${data.records.length}`
+                  : ''}
               </span>
               {follow && (
                 <span className="flex items-center gap-1">

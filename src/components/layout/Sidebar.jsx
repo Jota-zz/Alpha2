@@ -11,15 +11,13 @@ import {
   LayoutDashboard,
   BarChart3,
   Settings,
-  Megaphone,
   Terminal,
 } from 'lucide-react';
 
 const LINKS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/argos', label: 'Argos', icon: BarChart3 },
+  { to: '/', label: 'Panel de control', icon: LayoutDashboard, end: true },
+  { to: '/argos', label: 'Dashboard', icon: BarChart3 },
   { to: '/configuracion', label: 'Configuración', icon: Settings },
-  { to: '/broadcasts', label: 'Broadcasts', icon: Megaphone },
   { to: '/logs', label: 'Logs', icon: Terminal },
 ];
 

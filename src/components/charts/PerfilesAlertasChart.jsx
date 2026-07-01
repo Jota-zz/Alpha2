@@ -4,16 +4,25 @@
  *   - Tabla con (cod_municipio, nombre, perfil, alerta) ordenada por
  *     prioridad de alerta (🔴 > 🟡 > 🟢).
  *
- * Datos vienen de GET /api/argos/perfiles-alertas con shape:
- *   { donut: { data, layout }, tabla: [{cod_municipio, nombre_municipio, perfil, alerta}], stats }
+ * Datos: CSV `argos_perfiles_alertas.csv` descargado desde Drive.
+ *
+ * Props:
+ *   - csvText: contenido crudo del CSV (string).
+ *   - codMunicipio: filtro global (Argos.jsx). Valor inicial; el header
+ *     incluye un select local para sobre-escribir.
+ *   - municipiosOpts: lista [{ cod, nombre }] para el select de municipio.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { fetchArgosPerfilesAlertas } from '../../api/client';
-import { Card, CardTitle } from '../ui/Card';
-import { ErrorCard, Loading } from '../ui/EmptyState';
-import { PlotChart } from './PlotChart';
+import { useMemo, useState, useEffect } from 'react';
 import { PieChart } from 'lucide-react';
+import { Card, CardTitle } from '../ui/Card';
+import { EmptyState } from '../ui/EmptyState';
+import { PlotChart } from './PlotChart';
+import {
+  buildPerfilesAlertas,
+  uniqueValues,
+  marcasOptions,
+} from '../../lib/csvParsers';
 
 function alertaVariant(alerta) {
   if (alerta?.includes('🔴')) return 'crit';
@@ -29,27 +38,127 @@ function AlertaBadge({ alerta }) {
     ok: 'ds-badge-ok',
     neutral: 'ds-badge-neutral',
   }[alertaVariant(alerta)];
-  // Mostramos el texto sin el emoji al principio para mejor lectura;
-  // el color del badge ya transmite la criticidad.
   const text = alerta?.replace(/^[🔴🟡🟢]\s*/, '').trim() || alerta;
   return <span className={cls}>{text}</span>;
 }
 
-export function PerfilesAlertasChart() {
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['argos', 'perfiles-alertas'],
-    queryFn: fetchArgosPerfilesAlertas,
-    staleTime: 60_000,
-  });
+export function PerfilesAlertasChart({
+  csvText,
+  codMunicipio: codGlobal = '',
+  marca: marcaGlobal = '',
+  municipiosOpts = [],
+}) {
+  const [perfil, setPerfil] = useState('');
+  const [alerta, setAlerta] = useState('');
+  const [marca, setMarca] = useState(marcaGlobal || '');
+  const [codMunicipio, setCodMunicipio] = useState(codGlobal || '');
+  useEffect(() => setCodMunicipio(codGlobal || ''), [codGlobal]);
+  useEffect(() => setMarca(marcaGlobal || ''), [marcaGlobal]);
 
-  if (isLoading) return <Loading label="Cargando perfiles y alertas…" />;
-  if (isError) return <ErrorCard error={error} />;
+  const perfiles = useMemo(() => uniqueValues(csvText, 'perfiles'), [csvText]);
+  const alertas = useMemo(() => uniqueValues(csvText, 'alerta'), [csvText]);
+  const marcas = useMemo(() => marcasOptions(csvText), [csvText]);
+
+  const parsed = useMemo(() => {
+    if (!csvText) return null;
+    try {
+      return buildPerfilesAlertas(csvText, {
+        perfil: perfil || null,
+        alerta: alerta || null,
+        codMunicipio: codMunicipio || null,
+        marca: marca || null,
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[perfiles] error parseando', e);
+      return null;
+    }
+  }, [csvText, perfil, alerta, codMunicipio, marca]);
+
+  const filtersUI = (
+    <>
+      <select
+        className="ds-select-sm"
+        value={marca}
+        onChange={(e) => setMarca(e.target.value)}
+        title="Filtrar por marca"
+        data-testid="perfiles-filter-marca"
+      >
+        <option value="">Marca: todas</option>
+        {marcas.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+      <select
+        className="ds-select-sm"
+        value={perfil}
+        onChange={(e) => setPerfil(e.target.value)}
+        title="Filtrar por perfil"
+        data-testid="perfiles-filter-perfil"
+      >
+        <option value="">Perfil: todos</option>
+        {perfiles.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+      <select
+        className="ds-select-sm"
+        value={alerta}
+        onChange={(e) => setAlerta(e.target.value)}
+        title="Filtrar por alerta"
+        data-testid="perfiles-filter-alerta"
+      >
+        <option value="">Alerta: todas</option>
+        {alertas.map((a) => (
+          <option key={a} value={a}>
+            {a}
+          </option>
+        ))}
+      </select>
+      {municipiosOpts.length > 0 && (
+        <select
+          className="ds-select-sm"
+          value={codMunicipio}
+          onChange={(e) => setCodMunicipio(e.target.value)}
+          title="Filtrar por municipio"
+          data-testid="perfiles-filter-municipio"
+        >
+          <option value="">Municipio: todos</option>
+          {municipiosOpts.map((m) => (
+            <option key={m.cod} value={m.cod}>
+              {m.nombre} ({m.cod})
+            </option>
+          ))}
+        </select>
+      )}
+    </>
+  );
+
+  if (!parsed) {
+    return (
+      <Card>
+        <CardTitle icon={<PieChart size={18} />} actions={filtersUI}>
+          Perfiles & alertas por municipio
+        </CardTitle>
+        <EmptyState icon="📂" title="Sin datos">
+          No se pudo parsear el CSV de perfiles y alertas.
+        </EmptyState>
+      </Card>
+    );
+  }
+
+  const { donut, tabla, stats } = parsed;
 
   return (
     <Card>
       <CardTitle
         icon={<PieChart size={18} />}
-        subtitle={`${data.stats.n_municipios} combinaciones · ${data.stats.rojas}🔴 · ${data.stats.amarillas}🟡 · ${data.stats.verdes}🟢`}
+        subtitle={`${stats.n_municipios} combinaciones · ${stats.rojas}🔴 · ${stats.amarillas}🟡 · ${stats.verdes}🟢`}
+        actions={filtersUI}
       >
         Perfiles & alertas por municipio
       </CardTitle>
@@ -58,15 +167,18 @@ export function PerfilesAlertasChart() {
         {/* Donut */}
         <div>
           <PlotChart
-            data={data.donut.data}
-            layout={data.donut.layout}
+            data={donut.data}
+            layout={donut.layout}
             height={320}
             testId="argos-donut"
           />
         </div>
 
         {/* Tabla */}
-        <div className="scrollbar-thin" style={{ maxHeight: 360, overflowY: 'auto' }}>
+        <div
+          className="scrollbar-thin"
+          style={{ maxHeight: 360, overflowY: 'auto' }}
+        >
           <table className="w-full text-sm">
             <thead className="text-xs text-slate-400 uppercase tracking-wider">
               <tr className="border-b border-white/10">
@@ -76,7 +188,7 @@ export function PerfilesAlertasChart() {
               </tr>
             </thead>
             <tbody>
-              {data.tabla.map((row, i) => (
+              {tabla.map((row, i) => (
                 <tr
                   key={`${row.cod_municipio}-${row.perfil}-${i}`}
                   className="border-b border-white/5 hover:bg-white/[0.02]"
