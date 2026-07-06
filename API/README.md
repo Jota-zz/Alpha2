@@ -50,6 +50,24 @@ docker build -t alpha-bot .
 docker run --env-file .env -p 8000:8000 alpha-bot
 ```
 
+## Base de datos
+
+El bot espera un PostgreSQL (Supabase) con el esquema `public`, el tipo ENUM
+`estado` y datos semilla mínimos (regional `CENTRO`, municipio `05001`) que usa
+el registro automático de ferreterías. Hay dos formas de crearlo:
+
+```bash
+# Opción A — script Python (usa los modelos; fuente única de verdad)
+python -m scripts.init_db          # crea tablas + enum + índice + semillas
+python -m scripts.init_db --no-seed
+python -m scripts.init_db --drop   # ⚠️ elimina y recrea (pide confirmación)
+
+# Opción B — SQL directo (pegar en el SQL Editor de Supabase)
+psql "$DATABASE_URL" -f scripts/schema.sql
+```
+
+Ambos son idempotentes. Requieren las variables `DB_*` del `.env`.
+
 ## Endpoints
 
 - `GET /health` — liveness.
